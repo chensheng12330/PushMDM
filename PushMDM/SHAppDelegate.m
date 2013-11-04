@@ -36,7 +36,7 @@
     
     if ([[[UIDevice currentDevice] systemVersion] floatValue] >= 7.0) {
         self.window = [[[UIWindow alloc] initWithFrame:[[UIScreen mainScreen] applicationFrame]] autorelease];
-        [application setStatusBarStyle:UIStatusBarStyleLightContent];
+        [application setStatusBarStyle:1];
     }
     else {
         self.window = [[[UIWindow alloc] initWithFrame:[[UIScreen mainScreen] bounds]] autorelease];
@@ -45,7 +45,7 @@
     //self.window.backgroundColor = [UIColor whiteColor];
     
     // Override point for customization after application launch.
-    self.viewController = [[[SHViewController alloc] initWithNibName:@"SHViewController" bundle:nil] autorelease];
+    self.viewController = [[[SHViewController alloc] init] autorelease];
     self.window.rootViewController = self.viewController;
     [self.window makeKeyAndVisible];
     

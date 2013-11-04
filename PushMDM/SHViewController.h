@@ -9,9 +9,11 @@
 
 #import <UIKit/UIKit.h>
 #import "HMSideMenu.h"
+#import "QuadCurveMenu.h"
 
+//@protocol QuadCurveMenuDelegate;
 
-@interface SHViewController : UIViewController<UIWebViewDelegate,UIGestureRecognizerDelegate>
+@interface SHViewController : UIViewController<UIWebViewDelegate,UIGestureRecognizerDelegate,QuadCurveMenuDelegate>
 {
     NSURLRequest *mainRequest;
     NSURLConnection *aa;
