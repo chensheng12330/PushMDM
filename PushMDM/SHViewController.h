@@ -10,20 +10,25 @@
 #import <UIKit/UIKit.h>
 #import "HMSideMenu.h"
 #import "QuadCurveMenu.h"
-
+#import "UMSocial.h"
 //@protocol QuadCurveMenuDelegate;
 
-@interface SHViewController : UIViewController<UIWebViewDelegate,UIGestureRecognizerDelegate,QuadCurveMenuDelegate>
+@interface SHViewController : UIViewController<UIWebViewDelegate,UIGestureRecognizerDelegate,QuadCurveMenuDelegate,UMSocialUIDelegate>
 {
-    NSURLRequest *mainRequest;
-    NSURLConnection *aa;
+    //NSURLRequest *mainRequest;
+    //NSURLConnection *aa;
+    UIActivityIndicatorView *activeView;
+    QuadCurveMenu *viQuadCurveMenu;
 }
 
+@property (nonatomic, retain) NSURLRequest *mainRequest;
 @property (retain, nonatomic) IBOutlet UIWebView *myWebView;
 @property (retain, nonatomic) IBOutlet UIButton *btnPress;
 
 @property (nonatomic, assign) BOOL menuIsVisible;
 @property (nonatomic, retain) HMSideMenu *sideMenu;
+
+-(void) webViewReload:(NSURLRequest *) mainRequest;
 
 - (IBAction)toggleMenu:(id)sender;
 @end

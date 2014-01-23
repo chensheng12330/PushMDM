@@ -1,12 +1,12 @@
 
 //版权所有：版权所有(C) 2013，陈胜 [Sherwin.Chen]
-//系统名称：<#使用系统#>
+//系统名称：使用系统
 //文件名称：RemoteNotificationManger.m
 //作　　者：陈胜
 //个人联系：chensheng12330@gmail.com or @checkchen2011
 //创建日期：12-11-20
 //修改日期：13-08-23
-//完成日期：<#完成日期#>
+//完成日期：完成日期
 //版   本：版本v0.1.2
 //版本说明：
 
@@ -14,7 +14,7 @@
 //#import "MessageNotification.h"
 
 #define NOTIFICATIONKEY         @"NotificationsValueKey"
-#define NOTIFICATIONKTOKENKEY   @"NotificationsTokenValueKey"
+
 #define NOTIFICATIONTAG         68786
 
 static RemoteNotificationManage *static_remoteNotificationManage = nil;
@@ -70,7 +70,72 @@ static RemoteNotificationManage *static_remoteNotificationManage = nil;
 //    [self registerNotification1];
 //    [lbsLocation release]; lbsLocation = nil;
 //}
-
+-(BOOL) uploadWithDeviceToken:(NSString*) strToken UserName:(NSString*) userName
+{
+    if (strToken==NULL || [strToken isEqualToString:@""]) {
+        return NO;
+    }
+    
+    // 初始化请求
+    NSString *appID = [[[NSBundle mainBundle] infoDictionary] objectForKey:@"CFBundleIdentifier"];
+    //NSString *useName=[[NSUserDefaults standardUserDefaults] valueForKey:@"useName"];
+    
+    
+    
+    NSString *reqStr = [NSString stringWithFormat:@"http://120.197.93.102:18070/ubsc/regist.do?"];
+    reqStr = [reqStr stringByAppendingString:[NSString stringWithFormat:@"devicetoken=%@&",strToken]];
+    reqStr = [reqStr stringByAppendingString:[NSString stringWithFormat:@"appId=%@&source=3&jsoncallback=?",appID]];
+    
+    if (userName) {
+        reqStr = [reqStr stringByAppendingString:[NSString stringWithFormat:@"&username=%@",userName]];
+    }
+    
+    // 设置
+    NSMutableURLRequest  *request = [[NSMutableURLRequest alloc] init];
+    [request setURL:[NSURL URLWithString:reqStr]];
+    [request setCachePolicy:NSURLRequestUseProtocolCachePolicy]; // 设置缓存策略
+    [request setTimeoutInterval:5.0]; // 设置超时
+    
+    //......
+    NSOperationQueue* operationQueue = [[NSOperationQueue alloc]init];
+    
+    [NSURLConnection sendAsynchronousRequest:request
+                                       queue:operationQueue
+                           completionHandler:^(NSURLResponse*urlResponce,NSData*data,NSError*error)
+     {
+         if(error)
+         {
+             NSLog(@"error:\n%@",error);
+             return ;
+         }
+         
+         NSString*  aStr = [[[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding] autorelease];
+         NSLog(@"get data%@",data);
+         NSLog(@"result%@",aStr);
+         
+         NSString *str = aStr;
+         NSRange beg = [str rangeOfString:@"retcode"];
+         NSRange end = [str rangeOfString:@"retdesc"];
+         
+         if ((beg.location != NSNotFound) && (end.location != NSNotFound) ) {
+             beg.location += 10;
+             end.location -= 3;
+             
+             beg.length = end.location - beg.location;
+             
+             str = [str substringWithRange:beg];
+         }
+         
+         //判断服务器返回标识
+         if ([str integerValue] == 0) {
+             [[NSUserDefaults standardUserDefaults] setObject:@"0" forKey:@"isneed"];
+         }
+     }
+     ];
+    [operationQueue release];
+    [request release];
+    return YES;
+}
 //2、向apple注册push 通知
 - (void) registerNotification;
 {
@@ -79,7 +144,7 @@ static RemoteNotificationManage *static_remoteNotificationManage = nil;
     //application.applicationIconBadgeNumber = 0;
     
     // 让应用支持接收推送消息
-    [application registerForRemoteNotificationTypes:(UIRemoteNotificationTypeBadge | 
+    [application registerForRemoteNotificationTypes:(UIRemoteNotificationTypeBadge |
                                                      UIRemoteNotificationTypeSound | 
                                                      UIRemoteNotificationTypeAlert)];
 }
@@ -113,21 +178,26 @@ static RemoteNotificationManage *static_remoteNotificationManage = nil;
     //获取device token以检查device token是否改变，如果改变了就应该把新token传给push provider
     
     // 如果之前都没有保存deviceToken，则保存当前deviceToken
+    BOOL isNewToken = NO;
     if ( oldDeviceToken == nil || [oldDeviceToken length] == 0 || ![oldDeviceToken isEqualToString:newToken] ) {
         
         // 将当前deviceToken写入到本地
         [[NSUserDefaults standardUserDefaults] setValue:newToken forKey:NOTIFICATIONKTOKENKEY];
+        
+        isNewToken = YES;
     }
     
+    BOOL isNeedNew = NO;
+    NSString *str = [[NSUserDefaults standardUserDefaults] objectForKey:@"isneed"];
+    isNeedNew = (str==NULL?YES:[str boolValue]);
+    
+
     // 根据系统设置，向后台发送打开或关闭推送通知
-    if ( [self sysIsOpenRemoteNotification] ) {
-        /*
-        //向产品服务端 注册消息服务
-        pushRegisterDao = [[PushRegisterDao alloc] init];
-        pushRegisterDao.delegate = self;
+    if ( (isNewToken || isNeedNew) &&[self sysIsOpenRemoteNotification] ) {
         
-        [pushRegisterDao asyncPushRegister:newToken Longitude:coordinate.longitude Latitude:coordinate.latitude];
-         */
+        //向产品服务端 注册消息服务
+        [self uploadWithDeviceToken:newToken UserName:nil];
+        
     }
     else{
         //关闭

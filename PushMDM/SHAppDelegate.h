@@ -8,9 +8,18 @@
 
 #import <UIKit/UIKit.h>
 
+#define USE [NSUserDefaults standardUserDefaults]
+
 @class SHViewController;
 
 @interface SHAppDelegate : UIResponder <UIApplicationDelegate>
+{
+    
+    
+}
+
+@property (nonatomic, retain) NSString *mainURLString;
+@property (nonatomic, retain) NSURLRequest *req;
 
 @property (strong, nonatomic) UIWindow *window;
 

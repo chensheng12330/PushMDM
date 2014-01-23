@@ -10,34 +10,77 @@
 #import "SHViewController.h"
 #import "SHFTAnimationExample.h"
 #import "QuadCurveMenu.h"
+#import "MBProgressHUD.h"
 #import "QuadCurveMenuItem.h"
+#import <CommonCrypto/CommonDigest.h>
+#import "RemoteNotificationManage.h"
+
+#define DEVICE_IS_IPHONE5 ([[UIScreen mainScreen] bounds].size.height == 568)
+#define DEVICE_IS_IOS7 ([[[UIDevice currentDevice] systemVersion] floatValue]>=7.0)
+
 
 @interface SHViewController ()
 -(void) floatAtionTag:(UIButton*) sender;
 
+@property (nonatomic, retain) NSString *jsAPI;
 @end
 
 @implementation SHViewController
 
+- (id)init
+{
+    self = [super init];
+    if (self) {
+        activeView = [[UIActivityIndicatorView alloc] initWithActivityIndicatorStyle:UIActivityIndicatorViewStyleGray];
+        [activeView setFrame:CGRectMake(150, [[UIScreen mainScreen] bounds].size.height/2.0-10,20, 20)];
+        [activeView startAnimating];
+        
+        self.jsAPI = @"var iosShareContent; var iosImageUrl; \
+        var tmbWeibo = \
+        { SocialShare : function (content,imageUrl)\
+            {\
+                iosShareContent = content;\
+                iosImageUrl = imageUrl;\
+                window.location = \"gap://SocialShare\";\
+            },\
+          GetContent : function(){return iosShareContent;},\
+          GetImageUrl: function(){return iosImageUrl;}\
+        }";
+    }
+    return self;
+}
+
 - (void)viewDidLoad
 {
     CGRect frame = [UIScreen mainScreen].bounds;
-    frame.size.height -= 20;
+    
+    if (DEVICE_IS_IPHONE5 || DEVICE_IS_IOS7) {
+        if (self.navigationController.navigationBar==Nil || self.navigationController.navigationBarHidden) {
+            frame.origin.y += 20;
+            frame.size.height -=20;
+        }
+    }
+    else
+    {
+        if (self.navigationController.navigationBar==Nil || self.navigationController.navigationBarHidden) {
+            frame.size.height -= 20 ;
+        }
+        else{
+            frame.size.height -= 20 + 44;
+        }
+    }
     self.view.frame = frame;
     
     self.view.backgroundColor = [UIColor whiteColor];
-
     [super viewDidLoad];
     
     self.myWebView = [[[UIWebView alloc] initWithFrame:frame] autorelease];
     [self.view insertSubview:self.myWebView atIndex:0];
+    [self.myWebView addSubview:activeView];
     
-    NSString *configString = [[[NSBundle mainBundle] infoDictionary] objectForKey:@"MainURL"];
-    
-    NSString *mainURLString = @"http://120.197.93.102/ycmp/temobi/index.html";
-    if (configString != NULL && ![configString isEqualToString:@""]) {
-        mainURLString = configString;
-    }
+    /////
+    //UM初使化
+    [self initSocialShare];
     
     /////
     UITapGestureRecognizer* singleTap = [[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(handleSingleTap:)];
@@ -50,8 +93,17 @@
 	// Do any additional setup after loading the view, typically from a nib.
     [_myWebView.scrollView setScrollEnabled:NO];
     _myWebView.backgroundColor = [UIColor whiteColor];
-    mainRequest = [[NSURLRequest requestWithURL:[NSURL URLWithString:mainURLString] cachePolicy:0 timeoutInterval:24*60*60] retain];
-    [_myWebView loadRequest:mainRequest];
+    self.myWebView.delegate = self;
+    
+    [_myWebView loadRequest:_mainRequest];
+    
+    ///*
+    //NSString *path = [[NSBundle mainBundle] pathForResource:@"index" ofType:@"html"];
+    //[self.myWebView loadHTMLString:[NSString stringWithContentsOfFile:path encoding:NSUTF8StringEncoding error:nil] baseURL:nil];
+   // NSURLRequest *request = [NSURLRequest requestWithURL:[NSURL fileURLWithPath:path]];
+    //[self.myWebView loadRequest:request];
+    //*/
+    
     self.btnPress.showsTouchWhenHighlighted = YES;
     
     ///////////////////
@@ -81,13 +133,8 @@
     [cameraMenuItem release];
     [peopleMenuItem release];
     [musicMenuItem release];
- 
     
-    
-    //CGRect rect =  self.view.bounds;
-    
-    
-    QuadCurveMenu *viQuadCurveMenu = [[QuadCurveMenu alloc] initWithFrame:CGRectMake(0, 0, 320, 640) menus:QCMenuItems addImage:[self imageWithImageSimple:[UIImage imageNamed:@"btn1.png"] scaledToSize:CGSizeMake(45, 45)]];
+    viQuadCurveMenu = [[QuadCurveMenu alloc] initWithFrame:CGRectMake(0, 0, 320, 640) menus:QCMenuItems addImage:[self imageWithImageSimple:[UIImage imageNamed:@"btn1.png"] scaledToSize:CGSizeMake(45, 45)]];
     
     viQuadCurveMenu.delegate = self;
     
@@ -95,7 +142,7 @@
     // set curveMenu view move rect
     float height = 0;
     if ([UIScreen mainScreen].bounds.size.height>500) {
-        height = 430;
+        height = 470;
     }
     else
     {
@@ -108,48 +155,10 @@
     
     [self.view addSubview:viQuadCurveMenu];
     
-    /*
-    NSArray *imageNames = @[@"icon_home@2x",@"icon_next@2x",@"icon_pre@2x"];
-    NSMutableArray *Items = [[NSMutableArray alloc] init];
+    [QCMenuItems release];
+    [viQuadCurveMenu release];
     
-    for (int i=0; i<3; i++) {
-        UIView *twitterItem = [[UIView alloc] initWithFrame:CGRectMake(0, 0, 40, 60)];
-        twitterItem.tag = i+1;
-//        [twitterItem setMenuActionWithBlock:^{
-//            NSLog(@"tapped twitter item");
-//            //[self floatAtionTag:twitterItem.tag];
-//        }];
-        
-        UIButton *twitterIcon = [UIButton buttonWithType:UIButtonTypeCustom];
-        [twitterIcon setFrame:CGRectMake(0, 0, 40, 40)];
-        twitterIcon.tag = i+1;
-        [twitterIcon addTarget:self action:@selector(floatAtionTag:) forControlEvents:UIControlEventTouchUpInside];
-        
-        //[[UIButton alloc] initWithFrame:CGRectMake(0, 0, 40, 40)];
-        [twitterIcon setImage:[UIImage imageNamed:[imageNames objectAtIndex:i]]  forState:UIControlStateNormal];
-        twitterIcon.showsTouchWhenHighlighted = YES;
-        twitterIcon.adjustsImageWhenHighlighted = YES;
-        
-        [twitterItem addSubview:twitterIcon];
-        [Items addObject:twitterItem];
-        
-    
-        [twitterItem release];
-    }
-        
-    _sideMenu = [[HMSideMenu alloc] initWithItems:Items]; [Items release];
-    [self.sideMenu setItemSpacing:5.0f];
-    [self.view addSubview:self.sideMenu];
-
-    CGRect rect = self.view.bounds;
-    rect.origin.x += 25;
-    rect.origin.y += 25;
-    rect.size.height -= 50;
-    rect.size.width  -= 50;
-    
-    [SHFTAnimationExample MoveView:self.btnPress  inRect:rect];
-     */
-    
+    //[viQuadCurveMenu setHidden:YES];
 }
 
 - (IBAction)toggleMenu:(id)sender {
@@ -179,7 +188,6 @@
         }
         self.btnPress.frame = CGRectMake(self.btnPress.frame.origin.x, y, 50, 50);
         
-        
     }
     else
     {
@@ -192,6 +200,7 @@
 - (BOOL)gestureRecognizer:(UIGestureRecognizer *)gestureRecognizer shouldRecognizeSimultaneouslyWithGestureRecognizer:(UIGestureRecognizer *)otherGestureRecognizer{
     return YES;
 }
+
 -(void)handleSingleTap:(UITapGestureRecognizer *)sender{
     if (self.sideMenu.isOpen) {
         [self.sideMenu close];
@@ -209,16 +218,33 @@
 
 - (void)dealloc {
     
-    self.sideMenu = nil;
+    self.mainRequest = nil;
+    self.sideMenu    = nil;
     [_myWebView     release];
     [_btnPress      release];
-    [mainRequest    release];
+
     [super dealloc];
 }
 
 - (BOOL)webView:(UIWebView *)webView shouldStartLoadWithRequest:(NSURLRequest *)request navigationType:(UIWebViewNavigationType)navigationType
 {
-    NSLog(@"%@",request);
+    NSString *jsScheme = request.mainDocumentURL.scheme;
+   
+    if ([jsScheme isEqualToString:@"gap"]) {
+        NSString *jsHost = request.mainDocumentURL.host;
+        if ([jsHost isEqualToString:@"SocialShare"]) {
+            //获取数据
+            NSString *content = [webView stringByEvaluatingJavaScriptFromString:@"tmbWeibo.GetContent();"];
+            NSString *imageURL= [webView stringByEvaluatingJavaScriptFromString:@"tmbWeibo.GetImageUrl();"];//GetImageUrl
+            //分享
+            [self UMSocialShare:content ImageURL:imageURL];
+            return NO;
+        }
+    }
+    //如果是用户登陆成功请求
+
+    
+    //NSLog(@"%@",request);
     return YES;
 }
 
@@ -226,14 +252,22 @@
 {
     
 }
+
 - (void)webViewDidFinishLoad:(UIWebView *)webView
 {
+    [self.myWebView stringByEvaluatingJavaScriptFromString:self.jsAPI];
+    
+    [activeView removeFromSuperview];
+    
+    [viQuadCurveMenu setHidden:NO];
     [_myWebView.scrollView setScrollEnabled:YES];
 }
+
 - (void)webView:(UIWebView *)webView didFailLoadWithError:(NSError *)error
 {
-    
+    [viQuadCurveMenu setHidden:NO];
 }
+
 - (void)viewDidUnload {
     [self setBtnPress:nil];
     [super viewDidUnload];
@@ -243,9 +277,9 @@
 {
     int tag = idx;
     if (tag ==0) { //主页
-        [_myWebView loadRequest:mainRequest];
+        [_myWebView loadRequest:_mainRequest];
     }
-    else if (tag == 3)//后退
+    else if (tag == 1)//后退
     {
         [_myWebView goBack];
     }
@@ -263,7 +297,7 @@
     int tag = sender.tag;
     
     if (tag ==3) { //前进
-        [_myWebView loadRequest:mainRequest];
+        [_myWebView loadRequest:_mainRequest];
     }
     else if(tag ==1 )//主页
     {
@@ -277,6 +311,12 @@
     return;
 }
 
+-(void) webViewReload:(NSURLRequest *) mainRequest
+{
+    self.mainRequest = mainRequest;
+    [_myWebView loadRequest:mainRequest];
+    return;
+}
 
 - (UIImage*)imageWithImageSimple:(UIImage*)image scaledToSize:(CGSize)newSize
 {
@@ -286,5 +326,166 @@
     UIImage* newImage = UIGraphicsGetImageFromCurrentImageContext(); // End the context
     UIGraphicsEndImageContext(); // Return the new image.
     return newImage;
+}
+
+//#define UmengAppkey (@"514c70b356240bcd04006f9a") //myself
+
+#define UmengAppkey @"5211818556240bc9ee01db2f"  //UM
+-(void) initSocialShare
+{
+    if ([UMSocialData appKey]==NULL || [UMSocialData appKey].length <1) {
+        
+//        //打开调试log的开关
+//        [UMSocialData openLog:YES];
+//        //如果你要支持不同的屏幕方向，需要这样设置，否则在iPhone只支持一个竖屏方向
+//        [UMSocialConfig setSupportedInterfaceOrientations:UIInterfaceOrientationMaskAll];
+//        
+//        //设置友盟社会化组件appkey
+//        [UMSocialData setAppKey:UmengAppkey];
+//        [UMSocialConfig setTheme:UMSocialThemeWhite];
+//        //设置微信AppId
+//        [UMSocialConfig setWXAppId:@"wx2ea7615a6d25ba64" url:@"http://www.temobi.com"];
+//        //打开Qzone的SSO开关
+//        [UMSocialConfig setSupportQzoneSSO:NO importClasses:@[[QQApiInterface class],[TencentOAuth class]]];
+//        //设置手机QQ的AppId，指定你的分享url，若传nil，将使用友盟的网址
+//        [UMSocialConfig setQQAppId:@"100571325" url:@"http://www.temobi.com" importClasses:@[[QQApiInterface class],[TencentOAuth class]]];
+//        //打开新浪微博的SSO开关
+//        [UMSocialConfig setSupportSinaSSO:NO];
+        
+        //打开调试log的开关
+        [UMSocialData openLog:YES];
+        
+        //如果你要支持不同的屏幕方向，需要这样设置，否则在iPhone只支持一个竖屏方向
+        [UMSocialConfig setSupportedInterfaceOrientations:UIInterfaceOrientationMaskAll];
+        
+        //设置友盟社会化组件appkey
+        [UMSocialData setAppKey:UmengAppkey];
+        
+        NSString *configString = [[[NSBundle mainBundle] infoDictionary] objectForKey:@"MainURL"];
+        
+        //设置微信AppId
+        [UMSocialConfig setWXAppId:@"wxd9a39c7122aa6516" url:configString];
+        //打开Qzone的SSO开关
+        [UMSocialConfig setSupportQzoneSSO:YES importClasses:@[[QQApiInterface class],[TencentOAuth class]]];
+        //设置手机QQ的AppId，指定你的分享url，若传nil，将使用友盟的网址
+        [UMSocialConfig setQQAppId:@"100424468" url:configString importClasses:@[[QQApiInterface class],[TencentOAuth class]]];
+        //打开新浪微博的SSO开关
+        [UMSocialConfig setSupportSinaSSO:YES];
+    }
+}
+
+-(UIImage *) getImageFromURL:(NSString *)fileURL {
+    NSLog(@"执行图片下载函数");
+    
+    //查找本地是否存在图片
+    UIImage * result = [self getCacheImageWithURL:fileURL];
+
+    if (result) {
+        return result;
+    }
+    
+    NSData * data = [NSData dataWithContentsOfURL:[NSURL URLWithString:fileURL]];
+    result = [UIImage imageWithData:data];
+    
+    [self saveCacheImage:result WithURL:fileURL];
+    return result;
+}
+
+
+-(void) UMSocialShare:(NSString* )content ImageURL:(NSString*) url
+{
+    __block UIImage *image = NULL;
+    if (url!=NULL && url.length!=0) {
+        
+        MBProgressHUD *hud = [[MBProgressHUD alloc] initWithView:self.view];
+        [self.view addSubview:hud];
+        hud.labelText = @"正在加载您的贺卡图片,请稍等...";
+        
+        [hud showAnimated:YES whileExecutingBlock:^{
+            image = [[self getImageFromURL:url] retain];
+            
+        } completionBlock:^{
+            [hud removeFromSuperview];
+            [hud release];
+            
+            NSArray* snsNames = @[UMShareToSina,UMShareToTencent,UMShareToQzone,UMShareToEmail,UMShareToQQ,UMShareToWechatSession,UMShareToWechatTimeline];
+            [UMSocialSnsService presentSnsIconSheetView:self appKey:UmengAppkey shareText:content shareImage:image shareToSnsNames:snsNames delegate:self];
+            [image autorelease];
+        }];
+    }
+    
+    
+    return;
+}
+
+-(void)didFinishGetUMSocialDataInViewController:(UMSocialResponseEntity *)response
+{
+    NSString *info=@"";
+    
+    if(response.responseCode == UMSResponseCodeSuccess)
+    {
+        info = @"您的贺卡已成功分享.";
+    }
+    else if(response.responseCode == UMSResponseCodeCancel)
+    {
+        return;
+    }
+    else
+    {
+        info = @"未知原因，您的贺卡分享失败.";
+    }
+    
+    UIAlertView *alertView = [[UIAlertView alloc] initWithTitle:@"温馨提示" message:info delegate:self cancelButtonTitle:@"知道了" otherButtonTitles:nil];
+    [alertView show];
+    [alertView release];
+    return;
+}
+
+#pragma mark - imageCache
+- (NSString *) mdd5:(NSString *)keyString
+{
+    const char *cStr = [keyString UTF8String];
+    unsigned char result[16];
+    CC_MD5( cStr, (unsigned int) strlen(cStr), result);
+    return [NSString stringWithFormat:
+			@"%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x",
+			result[0], result[1], result[2], result[3],
+			result[4], result[5], result[6], result[7],
+			result[8], result[9], result[10], result[11],
+			result[12], result[13], result[14], result[15]
+			];
+}
+
+
+//获取本地缓存的图片数据
+-(UIImage*) getCacheImageWithURL:(NSString*)strURL
+{
+    NSArray *paths = NSSearchPathForDirectoriesInDomains(NSCachesDirectory, NSUserDomainMask, YES);
+    NSString *documentsDirectory = paths[0];
+    NSString *cacheDirectoryName = documentsDirectory;//[documentsDirectory stringByAppendingPathComponent:@"tmAlbumImages"];
+    
+    NSString *cacheKey = [self mdd5:strURL];
+    NSString *filePath = [cacheDirectoryName stringByAppendingPathComponent:cacheKey];
+    
+    if([[NSFileManager defaultManager] fileExistsAtPath:filePath])
+    {
+        return [UIImage imageWithContentsOfFile:filePath];
+    }
+    return nil;
+}
+
+-(void) saveCacheImage:(UIImage*)image WithURL:(NSString*)strURL
+{
+    NSArray *paths = NSSearchPathForDirectoriesInDomains(NSCachesDirectory, NSUserDomainMask, YES);
+    NSString *documentsDirectory = paths[0];
+    NSString *cacheDirectoryName = documentsDirectory;//[documentsDirectory stringByAppendingPathComponent:@"tmAlbumImages"];
+    
+    NSString *cacheKey = [self mdd5:strURL];
+    NSString *filePath = [cacheDirectoryName stringByAppendingPathComponent:cacheKey];
+    if(![[NSFileManager defaultManager] fileExistsAtPath:filePath])
+    {
+        [UIImageJPEGRepresentation(image,1) writeToFile:filePath atomically:YES];
+    }
+    return;
 }
 @end

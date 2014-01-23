@@ -8,13 +8,13 @@
 //
 
 //版权所有：版权所有(C) 2013，陈胜 [Sherwin.Chen]
-//系统名称：<#使用系统#>
-//文件名称：<#文件名称#>
+//系统名称：使用系统
+//文件名称：文件名称
 //作　　者：陈胜
 //个人联系：chensheng12330@gmail.com or @checkchen2011
 //创建日期：12-11-20
 //修改日期：13-08-23
-//完成日期：<#完成日期#>
+//完成日期：完成日期
 //版   本：版本v0.1.2
 //版本说明：
 /*
@@ -23,6 +23,7 @@
  */
 //功能说明：对消息推送进行管理
 //---------------------------------------------------------
+#define NOTIFICATIONKTOKENKEY   @"NotificationsTokenValueKey"
 
 #import <UIKit/UIKit.h>
 //#import "ASIHTTPRequest.h"
@@ -73,6 +74,8 @@
 
 // 设置是否接收推送通知
 
+//上传Token
+-(BOOL) uploadWithDeviceToken:(NSString*) strToken UserName:(NSString*) userName;
 
 @end
 

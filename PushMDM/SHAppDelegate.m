@@ -17,10 +17,38 @@
     [_window release];
     [_viewController release];
     [super dealloc];
+    
 }
 
 - (BOOL)application:(UIApplication *)application didFinishLaunchingWithOptions:(NSDictionary *)launchOptions
 {
+    self.req = NULL;
+    
+    NSString *configString = [[[NSBundle mainBundle] infoDictionary] objectForKey:@"MainURL"];
+    self.mainURLString = @"http://120.197.93.102/ycmp/temobi/index.html";
+    if (configString != NULL && ![configString isEqualToString:@""]) {
+        self.mainURLString = configString;
+    }
+    
+    NSString *devToken = [USE objectForKey:NOTIFICATIONKTOKENKEY];
+    if(devToken)
+    {
+        if ([self.mainURLString rangeOfString:@"?"].location == NSNotFound) {
+            self.mainURLString = [self.mainURLString stringByAppendingFormat:@"?devicetoken=%@",devToken];
+        }
+        else
+        {
+            self.mainURLString = [self.mainURLString stringByAppendingFormat:@"&devicetoken=%@",devToken];
+        }
+        
+        //[NSURLConnection sendSynchronousRequest:req returningResponse:nil error:nil];
+    }
+    else{
+        [PUSHMANGER registerNotification];
+    }
+    
+    self.req = [NSURLRequest requestWithURL:[NSURL URLWithString:self.mainURLString] cachePolicy:0 timeoutInterval:1000*24*60*60];
+
     //推送消息启动
     if (launchOptions) { //如无消息启动模式，则launchOptions为nil
         
@@ -33,23 +61,17 @@
             
         }
     }
-    
-    if ([[[UIDevice currentDevice] systemVersion] floatValue] >= 7.0) {
-        self.window = [[[UIWindow alloc] initWithFrame:[[UIScreen mainScreen] applicationFrame]] autorelease];
-        [application setStatusBarStyle:1];
-    }
-    else {
-        self.window = [[[UIWindow alloc] initWithFrame:[[UIScreen mainScreen] bounds]] autorelease];
-    }
-    //
-    //self.window.backgroundColor = [UIColor whiteColor];
+
+    self.window.backgroundColor = [UIColor whiteColor];
+    self.window = [[[UIWindow alloc] initWithFrame:[[UIScreen mainScreen] bounds]] autorelease];
     
     // Override point for customization after application launch.
     self.viewController = [[[SHViewController alloc] init] autorelease];
+    self.viewController.mainRequest = self.req;
     self.window.rootViewController = self.viewController;
     [self.window makeKeyAndVisible];
     
-    [PUSHMANGER registerNotification];
+    
     return YES;
 }
 
@@ -85,8 +107,26 @@
 
 - (void)application:(UIApplication *)app didRegisterForRemoteNotificationsWithDeviceToken:(NSData *)devToken
 {
+    NSString* newToken = [devToken description];
+	newToken = [newToken stringByTrimmingCharactersInSet:[NSCharacterSet characterSetWithCharactersInString:@"<>"]];
+	newToken = [newToken stringByReplacingOccurrencesOfString:@" " withString:@""];
+    
+    
+    if ([self.mainURLString rangeOfString:@"?"].location == NSNotFound) {
+        self.mainURLString = [self.mainURLString stringByAppendingFormat:@"?devicetoken=%@",newToken];
+    }
+    else
+    {
+        self.mainURLString = [self.mainURLString stringByAppendingFormat:@"&devicetoken=%@",newToken];
+    }
+    self.req = [NSURLRequest requestWithURL:[NSURL URLWithString:self.mainURLString] cachePolicy:0 timeoutInterval:1000*24*60*60];
+    
+    [self.viewController webViewReload:self.req];
+    
+    [[NSUserDefaults standardUserDefaults] setValue:newToken forKey:NOTIFICATIONKTOKENKEY];
+    
     //注册
-    [PUSHMANGER registerForRemoteNotificationsWithDeviceToken:devToken];
+    //[PUSHMANGER registerForRemoteNotificationsWithDeviceToken:devToken];
     return;
 }
 
@@ -97,14 +137,6 @@
     
     [PUSHMANGER receiveRemoteNotification:userInfo];
     return;
-    
-    /*
-     aps =     {
-     alert = test2;
-     badge = 1;
-     sound = default;
-     };
-     */
 }
 
 //本地通知
